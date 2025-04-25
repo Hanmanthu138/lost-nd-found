@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lost & Found</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+    }
+    label, input, textarea, select {
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px;
+      background: black;
+      color: aquamarine;
+      border: none;
+      cursor: pointer;
+    }
+    #results {
+      margin-top: 20px;
+    }
+    img {
+      max-width: 100%;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Lost Item Finder</h1>
+    <form id="lostForm">
+      <label for="name">Your Name:</label>
+      <input type="text" id="name" required>
+
+      <label for="item">Lost Item Name:</label>
+      <input type="text" id="item" required>
+
+      <label for="category">Item Category:</label>
+      <select id="category" required>
+        <option value="electronics">Electronics</option>
+        <option value="clothing">Clothing</option>
+        <option value="documents">Documents</option>
+        <option value="accessories">Accessories</option>
+        <option value="others">Others</option>
+      </select>
+
+      <label for="description">Description:</label>
+      <textarea id="description" required></textarea>
+
+      <label for="location">Last Seen Location:</label>
+      <input type="text" id="location" required>
+
+      <label for="photo">Upload Photo:</label>
+      <input type="file" id="photo" accept="image/*" required>
+
+      <button type="submit">Report Lost Item</button>
+    </form>
+
+    <div id="results">
+      <h3>Possible Matches</h3>
+      <ul id="matches"></ul>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      databaseURL: "YOUR_DATABASE_URL",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const storage = firebase.storage();
+
+    const form = document.getElementById('lostForm');
+    const matchesList = document.getElementById('matches');
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const name = document.getElementById('name').value;
+      const item = document.getElementById('item').value;
+      const category = document.getElementById('category').value;
+      const description = document.getElementById('description').value;
+      const location = document.getElementById('location').value;
+      const photoFile = document.getElementById('photo').files[0];
+
+      const storageRef = storage.ref(lostItems/${Date.now()}_${photoFile.name});
+      storageRef.put(photoFile).then(snapshot => {
+        snapshot.ref.getDownloadURL().then(photoURL => {
+          const lostItem = {
+            name,
+            item,
+            category,
+            description,
+            location,
+            photoURL,
+            timestamp: Date.now()
+          };
+
+          database.ref(lostItems/${category}).push(lostItem);
+
+          alert("Lost item reported successfully!");
+          form.reset();
+
+          // Check for matches
+          database.ref(foundItems/${category}).once('value', snapshot => {
+            matchesList.innerHTML = '';
+            const data = snapshot.val();
+            if (data) {
+              Object.values(data).forEach(found => {
+                if (
+                  found.item.toLowerCase() === item.toLowerCase() &&
+                  found.location.toLowerCase().includes(location.toLowerCase())
+                ) {
+                  const li = document.createElement('li');
+                  li.innerHTML = <strong>${found.item}</strong> - ${found.description} at ${found.location}<br><img src="${found.photoURL}" alt="Found Item Image">;
+                  matchesList.appendChild(li);
+                }
+              });
+            }
+          });
+        });
+      });
+    });
+  </script>
+</body>
+</html>
